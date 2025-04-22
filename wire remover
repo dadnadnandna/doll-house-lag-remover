@@ -1,0 +1,85 @@
+local Players = game:GetService("Players")
+local TextChatService = game:GetService("TextChatService")
+local RunService = game:GetService("RunService")
+
+-- Block incoming spam messages
+TextChatService.OnIncomingMessage = function(message)
+    local blockedPhrases = {"/wire", "/ball", "this version of dollhouse", "search for dollhouse", "/clinic"}
+
+    for , phrase in pairs(blockedPhrases) do
+        if message.Text:lower():find(phrase) then
+            return nil
+        end
+    end
+    return message
+end
+
+-- Remove future spam text labels as soon as they appear
+game.DescendantAdded:Connect(function(descendant)
+    if descendant:IsA("TextLabel") then
+        local blockedPhrases = {"/wire", "/ball", "this version of dollhouse", "search for dollhouse", "/clinic"}
+
+        for , phrase in pairs(blockedPhrases) do
+            if descendant.Text:lower():find(phrase) then
+                descendant.Text = ""
+            end
+        end
+    end
+end)
+
+-- Removes slippers accessories from a character
+local function removeSlippersAccessories(character)
+    for , accessory in ipairs(character:GetChildren()) do
+        if accessory:IsA("Accessory") and accessory.Name:lower():find("slippers") then
+            accessory:Destroy()
+        end
+    end
+end
+
+-- Applies the removal to a player’s character continuously
+local function monitorPlayer(player)
+    local function startLoop(character)
+        coroutine.wrap(function()
+            while character and character.Parent do
+                removeSlippersAccessories(character)
+                task.wait(1) -- Check every 1 second (adjust if needed)
+            end
+        end)()
+    end
+
+    if player.Character then
+        startLoop(player.Character)
+    end
+
+    player.CharacterAdded:Connect(startLoop)
+end
+
+-- Remove characters of specific names on spawn
+local function onPlayerAdded(player)
+    local blockedNames = {"wirebots"}
+
+    for , name in pairs(blockedNames) do
+        if player.Name:lower():find(name) then
+            player.CharacterAdded:Connect(function(char)
+                char:Destroy()
+            end)
+            -- Also destroy current character if it exists
+            if player.Character then
+                player.Character:Destroy()
+            end
+        end
+    end
+
+    -- Monitor player for slippers accessory removal
+    monitorPlayer(player)
+end
+
+-- Apply to players already in the game
+for _, player in pairs(Players:GetPlayers()) do
+    if player ~= Players.LocalPlayer then
+        onPlayerAdded(player)
+    end
+end
+
+-- Connect to new players joining
+Players.PlayerAdded:Connect(onPlayerAdded)
